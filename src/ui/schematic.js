@@ -123,7 +123,7 @@ export class Schematic {
     // parts
     this.boxes = [];
     for (const p of def.parts) {
-      const d = info.part(p.id) || {}, sel = p.id === opts.sel, hov = p.id === opts.hover;
+      const d = info.part(p.ref || p.id) || {}, sel = p.id === opts.sel, hov = p.id === opts.hover;
       const col = p.ghost ? faint : sel || hov ? acc : ink;
       g.save(); g.translate(X(p.at[0]), Y(p.at[1])); g.rotate((p.rot || 0) * PI / 180);
       g.strokeStyle = col; g.fillStyle = col; g.lineWidth = sel ? 2.4 : 1.7; if (p.ghost) g.setLineDash([3, 4]);

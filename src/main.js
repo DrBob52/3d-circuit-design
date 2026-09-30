@@ -1,6 +1,7 @@
 import './style.css';
 import { View } from './view.js';
 import { BenchWorld } from './bench/world.js';
+import { PcbWorld } from './pcb/world.js';
 import { benchSpec } from './bench/board.js';
 import { Runtime } from './sim/runtime.js';
 import { LESSONS } from './lessons/index.js';
@@ -50,7 +51,9 @@ const view = new View($('view3d'), {
 });
 const bench = new BenchWorld();
 bench.onPress = (id, down) => { if (app.L.live && app.L.live.press && id === 'S1') setParam('press', down); };
-const worlds = { bench };
+const pcb = new PcbWorld();
+const worlds = { bench, pcb };
+Object.assign(app, { worlds, view, ui, save: () => save() });
 const meter = new Meter($('meter'), (m) => { save(); });
 const scope = new Scope($('scope'));
 const schem = new Schematic($('schem'), {
@@ -83,6 +86,7 @@ function renderTasks() {
 
 function setLesson(i) {
   if (app.L && app.L.leave) app.L.leave(app);
+  app.fig2Dirty = true;
   app.idx = i; const L = app.L = LESSONS[i];
   const p = app.p = app.params[L.id] = Object.assign({}, L.defaults, app.params[L.id] || {});
   app.stats[L.id] = app.stats[L.id] || { burnt: {}, replaced: {} };
@@ -91,16 +95,17 @@ function setLesson(i) {
   $('lessonText').innerHTML = L.text.map(t => `<p>${t}</p>`).join('');
   $('formula').innerHTML = L.formula.map(f => `<span>${f}</span>`).join('');
   renderStations(); renderTasks();
-  app.controls = buildControls($('controls'), L.controls, p, (k, v) => setParam(k, v), L.id);
+  app.controls = buildControls($('controls'), L.controls, p, (k, v, act) => act ? (L.action && L.action(k, app)) : setParam(k, v), L.id);
   const w = worlds[L.world || 'bench'];
-  if (view.world !== w) view.setWorld(w); else view.flyTo(w.defaultView);
   if (L.enter) L.enter(app, w);
   app.rt = null; app.layoutKey = ''; rebuild();
+  if (view.world !== w) view.setWorld(w); else view.flyTo(w.defaultView);
   app.probe = L.probe; app.hold = {};
   $('views').innerHTML = Object.keys(w.views).map(k => `<button data-view="${k}" aria-pressed="${k === w.defaultView}">${k}</button>`).join('');
   $('views').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { view.flyTo(b.dataset.view); $('views').querySelectorAll('button').forEach(q => q.setAttribute('aria-pressed', q === b)); }));
   $('vcapTxt').textContent = L.caption || 'Breadboard on the bench. Dot speed shows current, dot colour shows voltage.';
   $('scopeTitle').innerHTML = L.fig2 ? `Fig. 2&nbsp; ${L.fig2}` : 'Fig. 2&nbsp; Oscilloscope';
+  $('fig2html').hidden = !L.fig2html; $('scope').hidden = !!L.fig2html;
   $('capScope').innerHTML = L.scope ? `<span style="color:var(--ch1)">CH1</span> ${L.scope.ch1[0]}&nbsp; <span style="color:var(--ch2)">CH2</span> ${L.scope.ch2[0]}` : (L.fig2cap || '');
   app.fig3 = 'schematic'; renderFig3Tabs();
   scope.reset();
@@ -122,7 +127,7 @@ function setParam(k, v) {
   const L = app.L, p = app.p;
   if (p[k] === v) return;
   p[k] = v;
-  if (L.live && L.live[k] && app.rt) L.live[k](app.rt, v); else app.dirty = true;
+  if (L.live && L.live[k] && app.rt) L.live[k](app.rt, v, app); else app.dirty = true;
   if (L.onParam) L.onParam(k, v, app);
   app.controls.sync(p); save();
   if (L.graph && GRAPHS[L.graph] && typeof GRAPHS[L.graph].title === 'function') renderFig3Tabs();
@@ -157,7 +162,7 @@ function partInfo(id) {
       rows: [['V collector to emitter', fmt(r.vce, 'V')], ['Collector current', fmt(r.ic, 'A')], ['Base current', fmt(r.ib, 'A')], ['V base to emitter', fmt(r.vbe, 'V')]] };
     case 'ic555': return { name: `${id}, NE555 timer`, short: 'NE555', v: r.v, vwhat: 'supply, pin 8 to pin 1', i: r.i, R: null,
       rows: [['Supply', fmt(r.v, 'V')], ['Output', `${fmt(r.out, 'V')} (${r.q ? 'high' : 'low'})`], ['Supply current', fmt(r.i, 'A')]] };
-    case 'supply': return { name: 'Bench supply', short: `${(+s.V).toFixed(1)} V`, v: r.v, vwhat: 'voltage at its terminals', i: r.i, R: null,
+    case 'supply': return { name: app.L.supplyName ? app.L.supplyName(app.p) : 'Bench supply', short: `${(+s.V).toFixed(1)} V`, v: r.v, vwhat: 'voltage at its terminals', i: r.i, R: null,
       rows: [['Set to', `${(+s.V).toFixed(2)} V`], ['Delivering', fmt(r.i, 'A')], ['Power', fmt(r.p, 'W')]] };
     case 'button': return { name: `${id}, push button`, short: 'button', v: r.v, i: r.i, R: P.pressed ? 0.03 : null,
       rows: [['State', P.pressed ? 'pressed, closed' : 'up, open'], ['Current', fmt(r.i, 'A')]] };
@@ -187,7 +192,7 @@ function fillTip() {
 function splitUnit(x, unit, dig = 3) { const t = fmt(x, unit, dig), k = t.lastIndexOf(' '); return `${t.slice(0, k)}<small>${t.slice(k + 1)}</small>`; }
 function renderTiles() { $('vals').innerHTML = [0, 1, 2, 3].map(i => `<div><span class="k"></span><span class="v"></span><span class="x"></span></div>`).join(''); }
 function updateTiles() {
-  const tiles = app.L.tiles(app.rt, app.p), els = $('vals').children;
+  const tiles = app.L.tiles(app.rt, app.p, app), els = $('vals').children;
   tiles.forEach((t, i) => {
     const el = els[i]; if (!el) return;
     el.children[0].innerHTML = (t.ch ? `<i style="background:var(--ch${t.ch})"></i>` : '') + t.k;
@@ -196,10 +201,10 @@ function updateTiles() {
     el.children[2].innerHTML = t.x || '';
   });
 }
-function renderSpec() { $('spec').innerHTML = app.L.spec(app.rt, app.p).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join(''); }
+function renderSpec() { $('spec').innerHTML = app.L.spec(app.rt, app.p, app).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join(''); }
 function updateReadouts() {
   const L = app.L, rt = app.rt;
-  const [lvl, text] = L.status(rt, app.p);
+  const [lvl, text] = L.status(rt, app.p, app);
   $('dot').className = 'led ' + lvl; $('status').textContent = text;
   updateTiles();
   let anyBurnt = false; for (const P of rt.parts.values()) if (P.burnt) anyBurnt = true;
@@ -268,7 +273,7 @@ function frame(now) {
   if (frameN % 2 === 0) drawFig3();
   if (frameN % 3 === 0) { const inf = partInfo(app.probe); meter.draw(inf, css); }
   acc += dt;
-  if (acc > 0.2) { acc = 0; updateReadouts(); checkTasks(); if (frameN % 30 < 6) renderSpec(); }
+  if (acc > 0.2) { acc = 0; updateReadouts(); checkTasks(); renderSpec(); }
   requestAnimationFrame(frame);
 }
 function drawFig3() {
@@ -286,7 +291,7 @@ function drawFig3() {
   schem.draw(def, {
     v: (net) => rt.v(net),
     part: (id) => {
-      if (id === 'PS') { const r = rt.read('PS'); return r ? { value: `${(+app.p.V).toFixed(1)} V`, i: r.i } : null; }
+      if (id === 'PS') { const r = rt.read('PS'); return r ? { value: `${vmaxOf().toFixed(1)} V`, i: r.i } : null; }
       const inf = partInfo(id); return inf ? { value: inf.short, i: inf.i, glow: inf.glow } : null;
     }
   }, { color: true, vmax: vmaxOf(), sel: app.probe, hover: app.hover || app.schemHover }, css);

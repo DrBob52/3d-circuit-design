@@ -28,7 +28,7 @@ export function buildControls(root, defs, p, onChange, uid) {
         <input class="rule" type="range" id="${id}" min="${min}" max="${max}" step="${step}"><div class="scale"><span>${lo}</span><span>${hi}</span></div>`;
       grp.appendChild(box);
       const inp = box.querySelector('input'), out = box.querySelector('output');
-      const show = (v) => { out.innerHTML = d.type === 'rsel' ? `${bandHtml(v)}${fmtR(v)}` : d.type === 'csel' ? fmtC(v) : `${(+v).toFixed(d.dig ?? 1)} ${d.unit}`; };
+      const show = (v) => { out.innerHTML = d.type === 'rsel' ? `${bandHtml(v)}${fmtR(v)}` : d.type === 'csel' ? fmtC(v) : d.fmt ? d.fmt(v) : `${(+v).toFixed(d.dig ?? 1)} ${d.unit}`; };
       const toVal = () => vals ? vals[+inp.value] : +inp.value;
       inp.addEventListener('input', () => { fillRule(inp); const v = toVal(); show(v); onChange(d.key, v); });
       if (vals) inp.setAttribute('aria-valuetext', '');
@@ -40,9 +40,9 @@ export function buildControls(root, defs, p, onChange, uid) {
       cells.style.marginTop = '5px';
       cells.innerHTML = d.options.map(o => `<button class="cell" data-k="${esc(o.k)}" aria-pressed="false" title="${esc(o.nm)}"><span class="z"><span>${esc(o.z || '')}</span></span><span class="sym">${esc(o.sym)}</span><span class="nm">${esc(o.nm)}</span>${o.swatch ? `<i class="sw" style="background:${o.swatch}"></i>` : ''}</button>`).join('');
       box.appendChild(cells); grp.appendChild(box);
-      cells.querySelectorAll('.cell').forEach(c => c.addEventListener('click', () => onChange(d.key, c.dataset.k)));
+      cells.querySelectorAll('.cell').forEach(c => c.addEventListener('click', () => onChange(d.key, d.options.find(o => String(o.k) === c.dataset.k).k)));
       const out = box.querySelector('output');
-      syncers.push((p) => { cells.querySelectorAll('.cell').forEach(c => c.setAttribute('aria-pressed', c.dataset.k === p[d.key])); const o = d.options.find(o => o.k === p[d.key]); out.textContent = o ? o.nm : ''; });
+      syncers.push((p) => { cells.querySelectorAll('.cell').forEach(c => c.setAttribute('aria-pressed', c.dataset.k === String(p[d.key]))); const o = d.options.find(o => String(o.k) === String(p[d.key])); out.textContent = o ? o.nm : ''; });
     } else if (d.type === 'toggle') {
       const b = document.createElement('button'); b.className = 'btn'; b.id = id; b.style.marginTop = '10px'; b.style.width = '100%';
       b.innerHTML = '<i class="led"></i><span></span>';
@@ -62,9 +62,24 @@ export function buildControls(root, defs, p, onChange, uid) {
       const row = document.createElement('div'); row.className = 'row2';
       for (const [act, text] of d.items) {
         const b = document.createElement('button'); b.className = 'btn'; b.innerHTML = `<i class="led"></i><span>${esc(text)}</span>`;
-        b.addEventListener('click', () => onChange(act, true)); row.appendChild(b);
+        b.addEventListener('click', () => onChange(act, true, true)); row.appendChild(b);
       }
       grp.appendChild(row);
+    } else if (d.type === 'toggles') {
+      const box = document.createElement('div'); box.className = 'dial';
+      box.innerHTML = `<div class="lab"><span>${esc(d.label)}</span></div>`;
+      const row = document.createElement('div'); row.className = 'row2'; row.style.marginTop = '5px';
+      const btns = d.items.map(([k, text]) => { const b = document.createElement('button'); b.className = 'btn'; b.innerHTML = `<i class="led"></i><span>${esc(text)}</span>`; b.addEventListener('click', () => onChange(k, !p[k])); row.appendChild(b); return [k, b]; });
+      box.appendChild(row); grp.appendChild(box);
+      syncers.push((p) => btns.forEach(([k, b]) => b.setAttribute('aria-pressed', !!p[k])));
+    } else if (d.type === 'steps') {
+      const box = document.createElement('div'); box.className = 'dial';
+      box.innerHTML = `<div class="lab"><label for="${id}">${esc(d.label)}</label><output></output></div>
+        <input class="rule" type="range" id="${id}" min="0" max="${d.values.length - 1}" step="1"><div class="scale"><span>${d.fmt(d.values[0])}</span><span>${d.fmt(d.values[d.values.length - 1])}</span></div>`;
+      grp.appendChild(box);
+      const inp = box.querySelector('input'), out = box.querySelector('output');
+      inp.addEventListener('input', () => { fillRule(inp); out.textContent = d.fmt(d.values[+inp.value]); onChange(d.key, +inp.value); });
+      syncers.push((p) => { inp.value = p[d.key]; fillRule(inp); out.textContent = d.fmt(d.values[p[d.key]]); inp.setAttribute('aria-valuetext', d.fmt(d.values[p[d.key]])); });
     } else if (d.type === 'note') {
       const t = document.createElement('p'); t.className = 'tip'; t.innerHTML = d.html; grp.appendChild(t);
     }

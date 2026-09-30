@@ -51,6 +51,10 @@ export class View {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     c.anim = { from: { az: c.az, el: c.el, r: c.r, t: c.target.clone() }, to: { az: c.az + d, el: v.el, r: v.r, t: v.target.clone() }, t: 0, dur: reduce ? 0.01 : 0.8 };
   }
+  flyToPoint(x, z) {
+    const c = this.cam, reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    c.anim = { from: { az: c.az, el: c.el, r: c.r, t: c.target.clone() }, to: { az: c.az, el: Math.max(c.el, 1.2), r: Math.min(c.r, 22), t: new THREE.Vector3(x, 0.8, z) }, t: 0, dur: reduce ? 0.01 : 0.7 };
+  }
   place() {
     const c = this.cam, t = c.target, r = c.r * Math.max(1, Math.pow(1.35 / this.camera.aspect, 0.9));
     this.camera.position.set(t.x + r * Math.cos(c.el) * Math.sin(c.az), t.y + r * Math.sin(c.el), t.z + r * Math.cos(c.el) * Math.cos(c.az));
