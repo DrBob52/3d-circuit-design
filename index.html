@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Circuit bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="app">
+  <header class="panel">
+    <h1>Circuit bench<span>nine stations from a first volt to your own tiny board</span></h1>
+    <div class="status" aria-live="polite"><i class="led" id="dot"></i><span id="status"></span></div>
+    <div class="hdr"><span id="progress"></span><span class="clock" id="clock"></span></div>
+  </header>
+
+  <aside class="rack panel" aria-label="Lesson and controls">
+    <div class="cap"><b>Stations</b><span id="stationCap">work through them in order</span></div>
+    <div class="grp"><div class="cells stations" id="stations" role="group" aria-label="Stations"></div></div>
+    <article class="grp lesson" id="lesson" aria-live="polite">
+      <div class="lh"><span class="num" id="lessonNum"></span><h2 id="lessonTitle"></h2></div>
+      <div id="lessonText"></div>
+      <div class="formula" id="formula"></div>
+    </article>
+    <div class="grp">
+      <div class="gh">Try this<output id="taskCount"></output></div>
+      <ol class="tasks" id="tasks"></ol>
+    </div>
+    <div id="controls"></div>
+    <div class="grp" id="replaceGrp" hidden>
+      <button class="btn warn" id="replace"><i class="led"></i><span>Replace part</span></button>
+    </div>
+    <div class="grp" id="displayGrp">
+      <div class="gh">Display</div>
+      <div class="row2" style="margin-top:0">
+        <button class="btn" id="optDots" aria-pressed="true"><i class="led"></i><span>Current dots</span></button>
+        <button class="btn" id="optElectrons" aria-pressed="false"><i class="led"></i><span>Show electrons</span></button>
+        <button class="btn" id="optStrips" aria-pressed="true"><i class="led"></i><span>Strip voltages</span></button>
+        <button class="btn" id="optLabels" aria-pressed="true"><i class="led"></i><span>Labels</span></button>
+      </div>
+      <div class="gh" style="margin-top:12px">Clock</div>
+      <div class="seg" id="rate" role="group" aria-label="Simulation speed">
+        <button data-rate="1" aria-pressed="true">Real time</button><button data-rate="0.1" aria-pressed="false">÷ 10</button><button data-rate="0.01" aria-pressed="false">÷ 100</button><button data-rate="0" aria-pressed="false">Pause</button>
+      </div>
+      <p class="tip" id="dotsTip">Dots move in the direction of conventional current, from + to −.</p>
+    </div>
+  </aside>
+
+  <main class="view panel" aria-label="Three dimensional view">
+    <div id="view3d"><div class="loading" id="loading">Laying out the bench</div></div>
+    <div class="brackets" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <div class="vcap"><b>Fig. 1</b>&nbsp; <span id="vcapTxt"></span></div>
+    <div class="views" id="views" role="group" aria-label="Camera view"></div>
+    <div class="cbar" id="cbar" aria-hidden="true"><div class="ttl"><b>V</b>&nbsp; voltage to ground</div><div class="bar"></div><div class="tks" id="cbarTicks"></div></div>
+    <div class="hint" id="hint">click a part to probe it · drag to orbit · scroll to zoom</div>
+    <div class="toast" id="toast" role="status"></div>
+    <div class="tip3d" id="tip" hidden></div>
+  </main>
+
+  <section class="read panel" aria-label="Multimeter and readouts">
+    <div class="meter"><canvas id="meter" aria-label="Multimeter"></canvas></div>
+    <div class="vals" id="vals"></div>
+    <div class="spec"><div class="cap"><b>As modelled</b><span id="specCap">parts and physics</span></div><dl id="spec"></dl></div>
+  </section>
+
+  <section class="scope panel" aria-label="Oscilloscope">
+    <div class="cap"><b id="scopeTitle">Fig. 2&nbsp; Oscilloscope</b><span id="capScope"></span></div>
+    <div class="plot"><canvas id="scope"></canvas></div>
+  </section>
+  <section class="schem panel" aria-label="Schematic">
+    <div class="cap"><b id="schemTitle">Fig. 3</b><span class="tabs" id="schemTabs" role="group" aria-label="Figure 3 view"></span></div>
+    <div class="plot"><canvas id="schem"></canvas></div>
+  </section>
+</div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
